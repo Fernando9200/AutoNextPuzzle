@@ -85,43 +85,31 @@
     }
 
     const settingsBtn = findSettingsButton();
-    let leftPosition = 'auto';
-    let rightPosition = 'auto';
     let bottomPosition = '28px';
+    let rightPosition = '260px';
 
-    // Use consistent positioning relative to settings button
+    // Calculate bottom position relative to settings button if found
     if (settingsBtn) {
       const rect = settingsBtn.getBoundingClientRect();
-      // Position relative to settings button for consistency
-      // Calculate as percentage of viewport for better scaling
-      const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      
-      // Position to the left of settings button
-      // Use right positioning for better consistency across screen sizes
-      const rightEdge = viewportWidth - rect.right;
-      rightPosition = `${rightEdge + 240}px`;
-      leftPosition = 'auto';
-      
-      // Bottom position relative to settings button
       const bottomEdge = viewportHeight - rect.bottom;
       bottomPosition = `${bottomEdge + 8}px`;
-    } else {
-      // Fallback: use consistent viewport-relative positioning
-      // Approximately 260px from right edge, scales with viewport
-      rightPosition = '260px';
+      // Position container to align with settings button area
+      const viewportWidth = window.innerWidth;
+      const rightEdge = viewportWidth - rect.right;
+      rightPosition = `${rightEdge + 240}px`;
     }
 
-    // Create simple toggle
+    // Create container row with Flexbox
     const toggleContainer = document.createElement('div');
     toggleContainer.id = 'chess-auto-next-toggle';
     
     toggleContainer.style.cssText = `
       position: fixed;
-      ${leftPosition !== 'auto' ? `left: ${leftPosition};` : ''}
-      ${rightPosition !== 'auto' ? `right: ${rightPosition};` : ''}
+      right: ${rightPosition};
       bottom: ${bottomPosition};
       display: flex;
+      flex-direction: row;
       align-items: center;
       gap: 8px;
       z-index: 10000;
@@ -159,7 +147,6 @@
         
         const rightEdge = viewportWidth - newRect.right;
         toggleContainer.style.right = `${rightEdge + 240}px`;
-        toggleContainer.style.left = 'auto';
         
         const bottomEdge = viewportHeight - newRect.bottom;
         toggleContainer.style.bottom = `${bottomEdge + 8}px`;
