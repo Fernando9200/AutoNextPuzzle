@@ -23,7 +23,7 @@ A Chrome extension that automatically clicks the "Next" or "Continue" button aft
 
 ### Method 2: From Releases
 
-1. 1. **Download** the latest release: [Download AutoNextPuzzle.zip](https://github.com/fwhuy/AutoNextPuzzle/releases/latest/download/autonextpuzzle.zip)
+1. **Download** the latest release: [Download AutoNextPuzzle.zip](https://github.com/fwhuy/AutoNextPuzzle/releases/latest/download/autonextpuzzle.zip)
 2. Extract to a folder
 3. Follow steps 3-7 from Method 1 above
 
