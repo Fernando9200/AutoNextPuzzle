@@ -15,92 +15,69 @@
   chrome.storage.sync.get(['enabled', 'delay'], (result) => {
     settings.enabled = result.enabled !== undefined ? result.enabled : true;
     settings.delay = result.delay !== undefined ? result.delay : 5;
-    updateToggleButton();
+    // Don't call updateToggleButton here - toggle doesn't exist yet
   });
 
   // Listen for settings changes
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.enabled) settings.enabled = changes.enabled.newValue;
     if (changes.delay) settings.delay = changes.delay.newValue;
-    updateToggleButton();
+    updateToggleState(); // Use updateToggleState directly since toggle should exist by now
   });
 
   // Create toggle next to settings icon in bottom right
+  let layoutObserver = null;
+  let positionUpdateTimeout = null;
+  let resizeHandler = null;
+  let scrollHandler = null;
+  
   function injectToggleIntoSettings() {
     if (document.getElementById('chess-auto-next-toggle')) return;
 
-    // Find settings icon/button in bottom right
-    function findSettingsButton() {
-      // Look for buttons in bottom right area
-      const allButtons = Array.from(document.querySelectorAll('button, [role="button"], a[class*="button"]'));
-      
-      // Filter for buttons that might be settings (gear icon, settings icon, etc.)
-      const potentialSettings = allButtons.filter(btn => {
-        if (!btn.offsetParent) return false;
-        
-        const rect = btn.getBoundingClientRect();
-        const isBottomRight = rect.bottom > window.innerHeight - 100 && rect.right > window.innerWidth - 200;
-        
-        const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-        const text = btn.textContent.toLowerCase();
-        const hasIcon = btn.querySelector('svg, i, [class*="icon"]');
-        const className = (btn.className || '').toLowerCase();
-        
-        return isBottomRight && (
-          ariaLabel.includes('setting') || 
-          ariaLabel.includes('gear') || 
-          ariaLabel.includes('preference') ||
-          text.includes('setting') ||
-          className.includes('setting') ||
-          className.includes('gear') ||
-          (hasIcon && (className.includes('icon') || className.includes('cog')))
-        );
-      });
-
-      // Return the rightmost button that's near the bottom
-      if (potentialSettings.length > 0) {
-        return potentialSettings.sort((a, b) => {
-          const aRect = a.getBoundingClientRect();
-          const bRect = b.getBoundingClientRect();
-          return bRect.right - aRect.right; // Rightmost first
-        })[0];
+    // Find the Next Move button with multiple selector strategies
+    let nextMoveBtn = null;
+    
+    // Try multiple selectors in order of preference
+    const selectors = [
+      'button[aria-label="Next Move"]',
+      'button[data-cy="next-move-arrow"]',
+      'button[aria-label*="Next"]',
+      'button[title*="Next"]',
+      // Fallback: look for buttons with "next" in text (case-insensitive)
+      () => {
+        const buttons = document.querySelectorAll('button');
+        return Array.from(buttons).find(btn => {
+          const text = btn.textContent?.trim().toLowerCase() || '';
+          const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+          return (text.includes('next move') || ariaLabel.includes('next move')) && 
+                 btn.offsetParent !== null;
+        });
       }
-
-      // Fallback: find any button in bottom right corner
-      const bottomRightButtons = allButtons.filter(btn => {
-        if (!btn.offsetParent) return false;
-        const rect = btn.getBoundingClientRect();
-        return rect.bottom > window.innerHeight - 150 && rect.right > window.innerWidth - 300;
-      });
-
-      if (bottomRightButtons.length > 0) {
-        return bottomRightButtons.sort((a, b) => {
-          const aRect = a.getBoundingClientRect();
-          const bRect = b.getBoundingClientRect();
-          return bRect.right - aRect.right;
-        })[0];
+    ];
+    
+    for (const selector of selectors) {
+      try {
+        if (typeof selector === 'function') {
+          nextMoveBtn = selector();
+        } else {
+          nextMoveBtn = document.querySelector(selector);
+        }
+        if (nextMoveBtn && nextMoveBtn.offsetParent !== null) {
+          break;
+        }
+      } catch (e) {
+        // Continue to next selector
+        continue;
       }
-
-      return null;
+    }
+    
+    if (!nextMoveBtn || !nextMoveBtn.offsetParent) {
+      console.log('Chess Auto-Next: Next Move button not found, retrying in 500ms...');
+      setTimeout(injectToggleIntoSettings, 500);
+      return;
     }
 
-    const settingsBtn = findSettingsButton();
-    let bottomPosition = '28px';
-    let rightPosition = '260px';
-
-    // Use fixed pixel positioning relative to settings button for stability
-    if (settingsBtn) {
-      const rect = settingsBtn.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      
-      // Position relative to settings button using fixed pixels
-      const rightEdge = viewportWidth - rect.right;
-      rightPosition = `${rightEdge + 240}px`;
-      
-      const bottomEdge = viewportHeight - rect.bottom;
-      bottomPosition = `${bottomEdge + 20}px`;
-    }
+    console.log('Chess Auto-Next: Found Next Move button', nextMoveBtn);
 
     // Create container row with Flexbox
     const toggleContainer = document.createElement('div');
@@ -108,8 +85,6 @@
     
     toggleContainer.style.cssText = `
       position: fixed;
-      right: ${rightPosition};
-      bottom: ${bottomPosition};
       display: flex;
       flex-direction: row;
       align-items: center;
@@ -130,34 +105,147 @@
     `;
 
     const checkbox = toggleContainer.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener('change', (e) => {
-      settings.enabled = e.target.checked;
-      chrome.storage.sync.set({ enabled: settings.enabled }, () => {
-        updateToggleState();
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        settings.enabled = e.target.checked;
+        chrome.storage.sync.set({ enabled: settings.enabled }, () => {
+          updateToggleState();
+        });
       });
-    });
+    }
 
-    document.body.appendChild(toggleContainer);
-    toggleButton = toggleContainer;
+    // Ensure document.body exists before appending
+    if (!document.body) {
+      console.warn('Chess Auto-Next: document.body not available, waiting...');
+      setTimeout(injectToggleIntoSettings, 500);
+      return;
+    }
+
+    try {
+      document.body.appendChild(toggleContainer);
+      toggleButton = toggleContainer;
+    } catch (e) {
+      console.error('Chess Auto-Next: Failed to append toggle container', e);
+      return;
+    }
+
+    // Helper function to find Next Move button (reuse same logic as injection)
+    const findNextMoveButton = () => {
+      const selectors = [
+        'button[aria-label="Next Move"]',
+        'button[data-cy="next-move-arrow"]',
+        'button[aria-label*="Next Move"]',
+        'button[aria-label*="Next"]'
+      ];
+      
+      for (const selector of selectors) {
+        try {
+          const btn = document.querySelector(selector);
+          if (btn && btn.offsetParent !== null) {
+            return btn;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      return null;
+    };
 
     // Update position on window resize and scroll
     const updatePosition = () => {
-      if (toggleContainer && settingsBtn && settingsBtn.offsetParent) {
-        const newRect = settingsBtn.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
+      try {
+        const targetBtn = findNextMoveButton();
         
-        // Use fixed pixel offsets for stability
-        const rightEdge = viewportWidth - newRect.right;
-        toggleContainer.style.right = `${rightEdge + 240}px`;
+        if (!toggleContainer || !targetBtn) {
+          return; // Silently return if button not found or toggle not initialized
+        }
         
-        const bottomEdge = viewportHeight - newRect.bottom;
-        toggleContainer.style.bottom = `${bottomEdge + 20}px`;
+        const newRect = targetBtn.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        
+        // Validate viewport dimensions
+        if (viewportWidth <= 0 || viewportHeight <= 0) {
+          return;
+        }
+        
+        // Remove right and bottom to avoid conflicts
+        toggleContainer.style.right = 'auto';
+        toggleContainer.style.bottom = 'auto';
+        
+        // Calculate desired position (140px to the left, 6px lower)
+        let desiredLeft = newRect.left - 140;
+        let desiredTop = newRect.top + 6;
+        
+        // Get toggle container dimensions (with fallback estimates)
+        const toggleRect = toggleContainer.getBoundingClientRect();
+        const toggleWidth = toggleRect.width || 120; // Approximate width: "Auto-Next" text + toggle
+        const toggleHeight = toggleRect.height || 22;
+        
+        // Bounds checking: ensure toggle stays within viewport
+        // Minimum left position (with some padding)
+        const minLeft = 10;
+        // Maximum left position (toggle shouldn't go off right edge)
+        const maxLeft = Math.max(minLeft, viewportWidth - toggleWidth - 10);
+        // Minimum top position
+        const minTop = 10;
+        // Maximum top position
+        const maxTop = Math.max(minTop, viewportHeight - toggleHeight - 10);
+        
+        // Clamp the position to viewport bounds
+        desiredLeft = Math.max(minLeft, Math.min(desiredLeft, maxLeft));
+        desiredTop = Math.max(minTop, Math.min(desiredTop, maxTop));
+        
+        // Apply the position
+        toggleContainer.style.left = `${desiredLeft}px`;
+        toggleContainer.style.top = `${desiredTop}px`;
+      } catch (e) {
+        console.error('Chess Auto-Next: Error updating toggle position', e);
       }
     };
     
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
+    // Set initial position with a small delay to ensure layout is settled
+    setTimeout(() => {
+      updatePosition();
+      // Also update after a brief delay to catch any late layout changes
+      setTimeout(updatePosition, 100);
+    }, 100);
+    
+    // Clean up any existing observers/listeners before creating new ones
+    if (layoutObserver) {
+      layoutObserver.disconnect();
+    }
+    if (resizeHandler) {
+      window.removeEventListener('resize', resizeHandler);
+    }
+    if (scrollHandler) {
+      window.removeEventListener('scroll', scrollHandler, true);
+    }
+    if (positionUpdateTimeout) {
+      clearTimeout(positionUpdateTimeout);
+    }
+    
+    // Debounce resize/scroll events for better performance
+    const debouncedUpdatePosition = () => {
+      if (positionUpdateTimeout) {
+        clearTimeout(positionUpdateTimeout);
+      }
+      positionUpdateTimeout = setTimeout(updatePosition, 50);
+    };
+    
+    resizeHandler = debouncedUpdatePosition;
+    scrollHandler = debouncedUpdatePosition;
+    window.addEventListener('resize', resizeHandler);
+    window.addEventListener('scroll', scrollHandler, true);
+    
+    // Also watch for layout changes that might affect button position
+    layoutObserver = new MutationObserver(debouncedUpdatePosition);
+    layoutObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
   }
 
   // Update toggle state
@@ -213,6 +301,8 @@
     if (!button || button.offsetParent === null) {
       const buttons = document.querySelectorAll('button, a[role="button"], a.button');
       button = Array.from(buttons).find(btn => {
+        if (btn.offsetParent === null) return false;
+        
         const text = btn.textContent.trim().toLowerCase();
         const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
         const className = (btn.className || '').toLowerCase();
@@ -223,7 +313,7 @@
                            (ariaLabel.includes('continue') && !ariaLabel.includes('continue solving'));
         const hasNextClass = className.includes('next');
         
-        return (hasNext || hasContinue || hasNextClass) && btn.offsetParent !== null;
+        return (hasNext || hasContinue || hasNextClass);
       });
     }
 
