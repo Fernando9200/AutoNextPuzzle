@@ -5,8 +5,8 @@ A Chrome extension that automatically clicks the "Next" or "Continue" button aft
 ##  Features
 
 - **Automatic Advancement**: Automatically clicks the Next/Continue button after puzzle completion
-- **Configurable Delay**: Set custom delay (in milliseconds) before auto-clicking
-- **Easy Toggle**: Enable or disable the feature with a simple checkbox
+- **Configurable Delay**: Set custom delay (in milliseconds) before auto-clicking (default: 5ms)
+- **Easy Toggle**: Enable or disable the feature with a toggle switch on the puzzle page
 
 
 ##  Installation
@@ -30,31 +30,37 @@ A Chrome extension that automatically clicks the "Next" or "Continue" button aft
 ##  Usage
 
 1. **Initial Setup**:
-   - Click the extension icon in your Chrome toolbar
-   - The popup will show current settings (enabled by default with 800ms delay)
+   - Install the extension (see Installation above)
+   - Navigate to any Chess.com puzzle page
+   - The Auto-Next toggle will appear in the bottom-right corner of the page
 
 2. **Configure Settings**:
-   - Check/uncheck **Enable Auto-Next** to turn the feature on or off
-   - Adjust **Delay (milliseconds)** to your preferred waiting time
-     - Default: 800ms (0.8 seconds)
-     - Recommended range: 500-2000ms
-   - Click **Save Settings**
+   - **Toggle Auto-Next**: Click the toggle switch in the bottom-right corner to enable/disable
+   - **Adjust Delay**: Click the extension icon in your Chrome toolbar to open the popup
+     - Adjust **Delay (milliseconds)** to your preferred waiting time
+     - Default: 5ms (0.005 seconds) for instant advancement
+     - Recommended range: 5-2000ms
+     - Click **Save Settings**
 
 3. **Start Solving Puzzles**:
    - Navigate to Chess.com puzzles
    - Solve puzzles as normal
-   - After completion, the extension will automatically click "Next" after your set delay
+   - After completion, the extension will automatically click "Next" after your set delay (if enabled)
    - Continue your puzzle streak seamlessly!
 
 ## ⚙️ Settings Explained
 
-### Enable Auto-Next
-- **Checked**: Extension will auto-click the Next button
-- **Unchecked**: Extension is disabled, manual clicking required
+### Auto-Next Toggle
+- Located in the bottom-right corner of the puzzle page (positioned near the settings icon)
+- Appears automatically when you're on a puzzle page
+- **On**: Extension will auto-click the Next button
+- **Off**: Extension is disabled, manual clicking required
+- Toggle state is saved and persists across page reloads
 
 ### Delay (milliseconds)
 - Time to wait before clicking the Next button after puzzle completion
-- **Lower values** (300-600ms): Faster advancement, less time to review
+- **Default**: 5ms for instant advancement
+- **Higher values** (100-2000ms): More time to review the puzzle solution
 
 
 

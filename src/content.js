@@ -1,19 +1,168 @@
 // Chess.com Auto-Next Content Script
 (function() {
-  let settings = { enabled: true, delay: 800 };
+  let settings = { enabled: true, delay: 5 };
   let hasClicked = false;
+  let toggleButton = null;
 
   // Load settings from storage
   chrome.storage.sync.get(['enabled', 'delay'], (result) => {
     settings.enabled = result.enabled !== undefined ? result.enabled : true;
-    settings.delay = result.delay !== undefined ? result.delay : 800;
+    settings.delay = result.delay !== undefined ? result.delay : 5;
+    updateToggleButton();
   });
 
   // Listen for settings changes
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.enabled) settings.enabled = changes.enabled.newValue;
     if (changes.delay) settings.delay = changes.delay.newValue;
+    updateToggleButton();
   });
+
+  // Create toggle next to settings icon in bottom right
+  function injectToggleIntoSettings() {
+    if (document.getElementById('chess-auto-next-toggle')) return;
+
+    // Find settings icon/button in bottom right
+    function findSettingsButton() {
+      // Look for buttons in bottom right area
+      const allButtons = Array.from(document.querySelectorAll('button, [role="button"], a[class*="button"]'));
+      
+      // Filter for buttons that might be settings (gear icon, settings icon, etc.)
+      const potentialSettings = allButtons.filter(btn => {
+        if (!btn.offsetParent) return false;
+        
+        const rect = btn.getBoundingClientRect();
+        const isBottomRight = rect.bottom > window.innerHeight - 100 && rect.right > window.innerWidth - 200;
+        
+        const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+        const text = btn.textContent.toLowerCase();
+        const hasIcon = btn.querySelector('svg, i, [class*="icon"]');
+        const className = (btn.className || '').toLowerCase();
+        
+        return isBottomRight && (
+          ariaLabel.includes('setting') || 
+          ariaLabel.includes('gear') || 
+          ariaLabel.includes('preference') ||
+          text.includes('setting') ||
+          className.includes('setting') ||
+          className.includes('gear') ||
+          (hasIcon && (className.includes('icon') || className.includes('cog')))
+        );
+      });
+
+      // Return the rightmost button that's near the bottom
+      if (potentialSettings.length > 0) {
+        return potentialSettings.sort((a, b) => {
+          const aRect = a.getBoundingClientRect();
+          const bRect = b.getBoundingClientRect();
+          return bRect.right - aRect.right; // Rightmost first
+        })[0];
+      }
+
+      // Fallback: find any button in bottom right corner
+      const bottomRightButtons = allButtons.filter(btn => {
+        if (!btn.offsetParent) return false;
+        const rect = btn.getBoundingClientRect();
+        return rect.bottom > window.innerHeight - 150 && rect.right > window.innerWidth - 300;
+      });
+
+      if (bottomRightButtons.length > 0) {
+        return bottomRightButtons.sort((a, b) => {
+          const aRect = a.getBoundingClientRect();
+          const bRect = b.getBoundingClientRect();
+          return bRect.right - aRect.right;
+        })[0];
+      }
+
+      return null;
+    }
+
+    const settingsBtn = findSettingsButton();
+    let leftPosition = 'auto';
+    let rightPosition = '260px';
+    let bottomPosition = '28px';
+
+    // If we found settings button, position to its right
+    if (settingsBtn) {
+      const rect = settingsBtn.getBoundingClientRect();
+      leftPosition = `${rect.right + 12 - 240}px`;
+      rightPosition = 'auto';
+      bottomPosition = `${window.innerHeight - rect.bottom + 8}px`;
+    }
+
+    // Create compact toggle button
+    const toggleContainer = document.createElement('div');
+    toggleContainer.id = 'chess-auto-next-toggle';
+    
+    toggleContainer.style.cssText = `
+      position: fixed;
+      ${leftPosition !== 'auto' ? `left: ${leftPosition};` : ''}
+      ${rightPosition !== 'auto' ? `right: ${rightPosition};` : ''}
+      bottom: ${bottomPosition};
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 10000;
+      background: transparent;
+      pointer-events: auto;
+    `;
+
+    toggleContainer.innerHTML = `
+      <span style="font-size: 12px; color: #666; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">Auto-Next</span>
+      <label class="toggle-container" style="position: relative; display: inline-block; width: 40px; height: 22px; cursor: pointer; flex-shrink: 0;">
+        <input type="checkbox" ${settings.enabled ? 'checked' : ''} style="opacity: 0; width: 0; height: 0; position: absolute;">
+        <span class="toggle-slider" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: ${settings.enabled ? '#81b64c' : '#ccc'}; border-radius: 22px; transition: background-color 0.3s;">
+          <span class="toggle-circle" style="position: absolute; height: 18px; width: 18px; left: 2px; bottom: 2px; background-color: white; border-radius: 50%; transition: transform 0.3s; transform: translateX(${settings.enabled ? '18px' : '0'}); box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></span>
+        </span>
+      </label>
+    `;
+
+    const checkbox = toggleContainer.querySelector('input[type="checkbox"]');
+    checkbox.addEventListener('change', (e) => {
+      settings.enabled = e.target.checked;
+      chrome.storage.sync.set({ enabled: settings.enabled }, () => {
+        updateToggleState();
+      });
+    });
+
+    // Always append to body with fixed positioning
+    document.body.appendChild(toggleContainer);
+    toggleButton = toggleContainer;
+
+    // Update position on window resize if we have a settings button
+    if (settingsBtn) {
+      const updatePosition = () => {
+        if (settingsBtn && toggleContainer) {
+          const newRect = settingsBtn.getBoundingClientRect();
+          toggleContainer.style.left = `${newRect.right + 12 - 240}px`;
+          toggleContainer.style.right = 'auto';
+          toggleContainer.style.bottom = `${window.innerHeight - newRect.bottom + 8}px`;
+        }
+      };
+      window.addEventListener('resize', updatePosition);
+    }
+  }
+
+  // Update toggle state
+  function updateToggleState() {
+    if (!toggleButton) return;
+    const checkbox = toggleButton.querySelector('input[type="checkbox"]');
+    const slider = toggleButton.querySelector('.toggle-slider');
+    const sliderCircle = toggleButton.querySelector('.toggle-circle');
+    
+    if (checkbox) checkbox.checked = settings.enabled;
+    if (slider) {
+      slider.style.backgroundColor = settings.enabled ? '#81b64c' : '#ccc';
+    }
+    if (sliderCircle) {
+      sliderCircle.style.transform = `translateX(${settings.enabled ? '18px' : '0'})`;
+    }
+  }
+
+  // Update toggle button appearance (legacy function name)
+  function updateToggleButton() {
+    updateToggleState();
+  }
 
   // Function to find and click the Next/Continue button
   function clickNextButton() {
@@ -117,6 +266,50 @@
     subtree: true,
     attributes: false
   });
+
+  // Watch for settings menus to appear and inject toggle
+  const settingsObserver = new MutationObserver(() => {
+    if (!document.getElementById('chess-auto-next-toggle')) {
+      injectToggleIntoSettings();
+    }
+  });
+
+
+  // Start observing for settings button to appear
+  if (document.body) {
+    // Try initial injection with multiple attempts
+    const tryInject = () => {
+      if (!document.getElementById('chess-auto-next-toggle')) {
+        injectToggleIntoSettings();
+      }
+    };
+    
+    setTimeout(tryInject, 500);
+    setTimeout(tryInject, 1500);
+    setTimeout(tryInject, 3000);
+    
+    // Watch for dynamically added buttons
+    settingsObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  } else {
+    const bodyObserver = new MutationObserver(() => {
+      if (document.body) {
+        setTimeout(() => {
+          if (!document.getElementById('chess-auto-next-toggle')) {
+            injectToggleIntoSettings();
+          }
+        }, 500);
+        settingsObserver.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+        bodyObserver.disconnect();
+      }
+    });
+    bodyObserver.observe(document.documentElement, { childList: true });
+  }
 
   console.log('Chess.com Auto-Next extension loaded');
 })();
