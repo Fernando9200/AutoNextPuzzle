@@ -2,14 +2,14 @@
 
 A Chrome extension that automatically clicks the "Next" or "Continue" button after you complete a puzzle on Chess.com, because chess.com decided to remove it.
 
-## ✨ Features
+##  Features
 
 - **Automatic Advancement**: Automatically clicks the Next/Continue button after puzzle completion
 - **Configurable Delay**: Set custom delay (in milliseconds) before auto-clicking
 - **Easy Toggle**: Enable or disable the feature with a simple checkbox
 
 
-## 📥 Installation
+##  Installation
 
 ### Method 1: Load Unpacked (For Development/Testing)
 
@@ -27,7 +27,7 @@ A Chrome extension that automatically clicks the "Next" or "Continue" button aft
 2. Extract to a folder
 3. Follow steps 3-7 from Method 1 above
 
-## 🎯 Usage
+##  Usage
 
 1. **Initial Setup**:
    - Click the extension icon in your Chrome toolbar
@@ -55,12 +55,11 @@ A Chrome extension that automatically clicks the "Next" or "Continue" button aft
 ### Delay (milliseconds)
 - Time to wait before clicking the Next button after puzzle completion
 - **Lower values** (300-600ms): Faster advancement, less time to review
-- **Medium values** (800-1200ms): Balanced, default experience
-- **Higher values** (1500-3000ms): More time to analyze your solution
 
 
 
-## 🛡️ Privacy & Permissions
+
+##  Privacy & Permissions
 
 This extension requires minimal permissions:
 
@@ -69,11 +68,11 @@ This extension requires minimal permissions:
 
 **No data is collected, transmitted, or stored externally.** All settings are saved locally in your browser.
 
-## 📝 License
+##  License
 
 This project is open source and available under the MIT License.
 
-## ⚠️ Disclaimer
+##  Disclaimer
 
 This extension is not affiliated with, endorsed by, or officially connected with Chess.com. It is an independent tool created to enhance the user experience.
 
