@@ -17,6 +17,7 @@ A Chrome extension that automatically clicks the "Next" or "Continue" button aft
 
 1. **Download the packed extension:**
    - Download `AutoNextPuzzle.crx` from [Releases](https://github.com/fwhuy/AutoNextPuzzle/releases/latest)
+   - ⚠️ Chrome may delete the crx for some reason, and if so move on to Method 2 instead or download on another browser.
 
 2. **Install in Chrome:**
    - Open Google Chrome and navigate to `chrome://extensions/`
